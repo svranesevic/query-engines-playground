@@ -1,8 +1,10 @@
+pub mod aggregate;
 pub mod binary;
 pub mod column;
 pub mod literal;
 
 use crate::logical_exprs::binary::Operator;
+use aggregate::AggregateExpr;
 use arrow::array::{ArrayRef, RecordBatch};
 use binary::Binary;
 use column::Column;
@@ -12,6 +14,7 @@ pub enum PhysicalExpr {
     Column(Column),
     Literal(Literal),
     Binary(Binary),
+    Aggregate(AggregateExpr),
 }
 
 impl PhysicalExpr {
@@ -64,6 +67,7 @@ impl PhysicalExpr {
             PhysicalExpr::Column(col) => col.evaluate(input),
             PhysicalExpr::Literal(lit) => lit.evaluate(input),
             PhysicalExpr::Binary(binary) => binary.evaluate(input),
+            PhysicalExpr::Aggregate(agg) => agg.expression().evaluate(input),
         }
     }
 }
@@ -74,6 +78,7 @@ impl std::fmt::Display for PhysicalExpr {
             PhysicalExpr::Column(col) => col.fmt(f),
             PhysicalExpr::Literal(lit) => lit.fmt(f),
             PhysicalExpr::Binary(binary) => binary.fmt(f),
+            PhysicalExpr::Aggregate(agg) => agg.fmt(f),
         }
     }
 }

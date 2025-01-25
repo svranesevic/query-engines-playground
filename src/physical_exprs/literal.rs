@@ -1,7 +1,7 @@
 use arrow::array::{ArrayRef, Int64Array, RecordBatch, StringArray};
 use std::sync::Arc;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Literal {
     Str(String),
     Long(i64),

@@ -1,4 +1,5 @@
 pub mod filter;
+pub mod hash_aggregate;
 pub mod projection;
 pub mod scan;
 
@@ -6,15 +7,20 @@ use std::rc::Rc;
 
 use arrow::{array::RecordBatch, datatypes::Schema};
 use filter::FilterExec;
+use hash_aggregate::HashAggregateExec;
 use projection::ProjectionExec;
 use scan::ScanExec;
 
-use crate::{data_source::DataSource, physical_exprs::PhysicalExpr};
+use crate::{
+    data_source::DataSource,
+    physical_exprs::{aggregate::AggregateExpr, PhysicalExpr},
+};
 
 pub enum PhysicalPlan {
     Scan(ScanExec),
     Projection(ProjectionExec),
     Filter(FilterExec),
+    Aggregate(HashAggregateExec),
 }
 
 impl PhysicalPlan {
@@ -30,11 +36,21 @@ impl PhysicalPlan {
         PhysicalPlan::Filter(FilterExec::new(input, predicate))
     }
 
+    pub fn aggregate(
+        input: Box<PhysicalPlan>,
+        group_expr: Vec<PhysicalExpr>,
+        aggr_expr: Vec<AggregateExpr>,
+        schema: Schema,
+    ) -> Self {
+        PhysicalPlan::Aggregate(HashAggregateExec::new(input, group_expr, aggr_expr, schema))
+    }
+
     pub fn children(&self) -> Vec<&PhysicalPlan> {
         match self {
             PhysicalPlan::Scan(scan) => scan.children(),
             PhysicalPlan::Projection(proj) => proj.children(),
             PhysicalPlan::Filter(filter) => filter.children(),
+            PhysicalPlan::Aggregate(agg) => agg.children(),
         }
     }
 
@@ -43,6 +59,7 @@ impl PhysicalPlan {
             PhysicalPlan::Scan(scan) => scan.schema(),
             PhysicalPlan::Projection(proj) => proj.schema(),
             PhysicalPlan::Filter(filter) => filter.schema(),
+            PhysicalPlan::Aggregate(agg) => agg.schema(),
         }
     }
 
@@ -52,6 +69,7 @@ impl PhysicalPlan {
             PhysicalPlan::Scan(scan) => scan.execute(),
             PhysicalPlan::Projection(proj) => proj.execute(),
             PhysicalPlan::Filter(filter) => filter.execute(),
+            PhysicalPlan::Aggregate(agg) => agg.execute(),
         }
     }
 
@@ -80,6 +98,7 @@ impl std::fmt::Display for PhysicalPlan {
             PhysicalPlan::Scan(p) => p.fmt(f),
             PhysicalPlan::Projection(p) => p.fmt(f),
             PhysicalPlan::Filter(p) => p.fmt(f),
+            PhysicalPlan::Aggregate(p) => p.fmt(f),
         }
     }
 }

@@ -25,8 +25,8 @@ impl DataFrame {
         DataFrame::new(plan)
     }
 
-    pub fn aggregate(self, gruop_by: Vec<LogicalExpr>, agg: Vec<AggregateExpr>) -> Self {
-        let plan = LogicalPlan::aggregate(self.plan, gruop_by, agg);
+    pub fn aggregate(self, group_by: Vec<LogicalExpr>, agg: Vec<AggregateExpr>) -> Self {
+        let plan = LogicalPlan::aggregate(self.plan, group_by, agg);
         DataFrame::new(plan)
     }
 

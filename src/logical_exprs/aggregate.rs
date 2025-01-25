@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use arrow::datatypes::Field;
 
 use crate::logical_plans::LogicalPlan;
@@ -6,32 +8,32 @@ use super::LogicalExpr;
 
 #[derive(Clone)]
 pub enum AggregateExpr {
-    Sum(Box<LogicalExpr>),
-    Min(Box<LogicalExpr>),
-    Max(Box<LogicalExpr>),
-    Avg(Box<LogicalExpr>),
-    Count(Box<Count>),
+    Sum(Rc<LogicalExpr>),
+    Min(Rc<LogicalExpr>),
+    Max(Rc<LogicalExpr>),
+    Avg(Rc<LogicalExpr>),
+    Count(Rc<Count>),
 }
 
 impl AggregateExpr {
     pub fn sum(expr: LogicalExpr) -> Self {
-        AggregateExpr::Sum(Box::new(expr))
+        AggregateExpr::Sum(Rc::new(expr))
     }
 
     pub fn min(expr: LogicalExpr) -> Self {
-        AggregateExpr::Min(Box::new(expr))
+        AggregateExpr::Min(Rc::new(expr))
     }
 
     pub fn max(expr: LogicalExpr) -> Self {
-        AggregateExpr::Max(Box::new(expr))
+        AggregateExpr::Max(Rc::new(expr))
     }
 
     pub fn avg(expr: LogicalExpr) -> Self {
-        AggregateExpr::Avg(Box::new(expr))
+        AggregateExpr::Avg(Rc::new(expr))
     }
 
     pub fn count(expr: LogicalExpr) -> Self {
-        AggregateExpr::Count(Box::new(Count::new(expr)))
+        AggregateExpr::Count(Rc::new(Count::new(expr)))
     }
 
     pub fn input(&self) -> &LogicalExpr {
@@ -69,13 +71,13 @@ impl std::fmt::Display for AggregateExpr {
 
 #[derive(Clone)]
 pub struct Count {
-    input: Box<LogicalExpr>,
+    input: Rc<LogicalExpr>,
 }
 
 impl Count {
     fn new(input: LogicalExpr) -> Self {
         Count {
-            input: Box::new(input),
+            input: Rc::new(input),
         }
     }
 

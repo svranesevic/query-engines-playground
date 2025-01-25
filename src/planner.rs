@@ -1,7 +1,11 @@
 use crate::{
-    logical_exprs::binary::Operator as LogicalBinaryOp,
-    logical_exprs::literal::Literal as LogicalLiteral, logical_exprs::LogicalExpr,
-    logical_plans::LogicalPlan, physical_exprs::PhysicalExpr, physical_plans::PhysicalPlan,
+    logical_exprs::{
+        aggregate::AggregateExpr as LogicalAggregateExpr, binary::Operator as LogicalBinaryOp,
+        literal::Literal as LogicalLiteral, LogicalExpr,
+    },
+    logical_plans::LogicalPlan,
+    physical_exprs::{aggregate::AggregateExpr as PhysicalAggregateExpr, PhysicalExpr},
+    physical_plans::PhysicalPlan,
 };
 
 pub fn create_physical_plan(plan: &LogicalPlan) -> PhysicalPlan {
@@ -25,20 +29,33 @@ pub fn create_physical_plan(plan: &LogicalPlan) -> PhysicalPlan {
             PhysicalPlan::filter(Box::new(input), expr)
         }
         LogicalPlan::Aggregate(aggregate) => {
-            // let input = create_physical_plan(aggregate.input.as_ref());
-            // let group_expr = aggregate
-            //     .group_expr
-            //     .iter()
-            //     .map(|e| create_physical_expr(e, plan))
-            //     .collect();
-            // let aggr_expr = aggregate
-            //     .aggr_expr
-            //     .iter()
-            //     .map(|e| create_physical_expr(e, plan))
-            //     .collect();
-            // PhysicalPlan::aggregate(Box::new(input), group_expr, aggr_expr)
-            todo!()
+            let input = create_physical_plan(aggregate.input.as_ref());
+            let group_by: Vec<_> = aggregate
+                .group_by
+                .iter()
+                .map(|e| create_physical_expr(e, plan))
+                .collect();
+            let aggr_expr: Vec<_> = aggregate
+                .agg
+                .iter()
+                .map(|e| create_aggregate_expr(e, plan))
+                .collect();
+            PhysicalPlan::aggregate(Box::new(input), group_by, aggr_expr, aggregate.schema())
         }
+    }
+}
+
+fn create_aggregate_expr(
+    aggregate: &LogicalAggregateExpr,
+    plan: &LogicalPlan,
+) -> PhysicalAggregateExpr {
+    let expr = Box::new(create_physical_expr(aggregate.input(), plan));
+    match aggregate {
+        LogicalAggregateExpr::Max(_) => PhysicalAggregateExpr::max(expr),
+        LogicalAggregateExpr::Sum(_) => PhysicalAggregateExpr::sum(expr),
+        LogicalAggregateExpr::Min(_) => PhysicalAggregateExpr::min(expr),
+        LogicalAggregateExpr::Avg(_) => PhysicalAggregateExpr::avg(expr),
+        LogicalAggregateExpr::Count(_) => PhysicalAggregateExpr::count(expr),
     }
 }
 
@@ -68,14 +85,7 @@ fn create_physical_expr(expr: &LogicalExpr, plan: &LogicalPlan) -> PhysicalExpr 
             }
         }
         LogicalExpr::Aggregate(aggregate) => {
-            // let input = create_physical_expr(aggregate.expr(), plan);
-            // match aggregate {
-            //     Aggregate::Sum(_) => PhysicalExpr::sum(input),
-            //     Aggregate::Min(_) => PhysicalExpr::min(input),
-            //     Aggregate::Max(_) => PhysicalExpr::max(input),
-            //     Aggregate::Avg(_) => PhysicalExpr::avg(input),
-            // }
-            todo!()
+            panic!("Unexpected aggregate expression: {}", aggregate)
         }
     }
 }
