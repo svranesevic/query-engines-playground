@@ -24,6 +24,21 @@ pub fn create_physical_plan(plan: &LogicalPlan) -> PhysicalPlan {
             let expr = create_physical_expr(&filter.expr, plan);
             PhysicalPlan::filter(Box::new(input), expr)
         }
+        LogicalPlan::Aggregate(aggregate) => {
+            // let input = create_physical_plan(aggregate.input.as_ref());
+            // let group_expr = aggregate
+            //     .group_expr
+            //     .iter()
+            //     .map(|e| create_physical_expr(e, plan))
+            //     .collect();
+            // let aggr_expr = aggregate
+            //     .aggr_expr
+            //     .iter()
+            //     .map(|e| create_physical_expr(e, plan))
+            //     .collect();
+            // PhysicalPlan::aggregate(Box::new(input), group_expr, aggr_expr)
+            todo!()
+        }
     }
 }
 
@@ -51,6 +66,16 @@ fn create_physical_expr(expr: &LogicalExpr, plan: &LogicalPlan) -> PhysicalExpr 
                 LogicalBinaryOp::And => PhysicalExpr::and(left, right),
                 LogicalBinaryOp::Or => PhysicalExpr::or(left, right),
             }
+        }
+        LogicalExpr::Aggregate(aggregate) => {
+            // let input = create_physical_expr(aggregate.expr(), plan);
+            // match aggregate {
+            //     Aggregate::Sum(_) => PhysicalExpr::sum(input),
+            //     Aggregate::Min(_) => PhysicalExpr::min(input),
+            //     Aggregate::Max(_) => PhysicalExpr::max(input),
+            //     Aggregate::Avg(_) => PhysicalExpr::avg(input),
+            // }
+            todo!()
         }
     }
 }

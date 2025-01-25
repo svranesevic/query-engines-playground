@@ -1,4 +1,8 @@
-use crate::{data_source::CsvDataSource, logical_exprs::LogicalExpr, logical_plans::LogicalPlan};
+use crate::{
+    data_source::CsvDataSource,
+    logical_exprs::{aggregate::AggregateExpr, LogicalExpr},
+    logical_plans::LogicalPlan,
+};
 use arrow::datatypes::Schema;
 use std::rc::Rc;
 
@@ -7,10 +11,6 @@ pub struct DataFrame {
 }
 
 impl DataFrame {
-    fn new(plan: LogicalPlan) -> Self {
-        Self { plan }
-    }
-
     pub fn logical_plan(self) -> LogicalPlan {
         self.plan
     }
@@ -23,6 +23,15 @@ impl DataFrame {
     pub fn filter(self, expr: LogicalExpr) -> Self {
         let plan = LogicalPlan::filter(self.plan, expr);
         DataFrame::new(plan)
+    }
+
+    pub fn aggregate(self, gruop_by: Vec<LogicalExpr>, agg: Vec<AggregateExpr>) -> Self {
+        let plan = LogicalPlan::aggregate(self.plan, gruop_by, agg);
+        DataFrame::new(plan)
+    }
+
+    fn new(plan: LogicalPlan) -> Self {
+        Self { plan }
     }
 
     fn schema(&self) -> Schema {

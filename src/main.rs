@@ -24,7 +24,8 @@ fn main() {
     let filter = age_col.gte(age);
     let logical_plan = ctx
         .filter(filter)
-        .project(vec![first_name_col, age_col])
+        .project(vec![first_name_col, age_col.clone()])
+        .aggregate(vec![age_col], vec![])
         .logical_plan();
     println!("Logical Plan:\n{}", logical_plan.format());
 

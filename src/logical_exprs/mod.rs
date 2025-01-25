@@ -1,8 +1,10 @@
+pub mod aggregate;
 pub mod binary;
 pub mod column;
 pub mod literal;
 
 use crate::logical_plans::LogicalPlan;
+use aggregate::AggregateExpr;
 use arrow::datatypes::Field;
 use binary::Binary;
 use column::Column;
@@ -13,6 +15,7 @@ pub enum LogicalExpr {
     Column(Column),
     Literal(Literal),
     Binary(Binary),
+    Aggregate(AggregateExpr),
 }
 
 impl LogicalExpr {
@@ -33,6 +36,7 @@ impl LogicalExpr {
             LogicalExpr::Column(column) => column.to_field(input),
             LogicalExpr::Literal(literal) => literal.to_field(input),
             LogicalExpr::Binary(binary) => binary.to_field(input),
+            LogicalExpr::Aggregate(aggregate) => aggregate.to_field(input),
         }
     }
 
@@ -75,6 +79,7 @@ impl std::fmt::Display for LogicalExpr {
             LogicalExpr::Column(column) => column.fmt(f),
             LogicalExpr::Literal(literal) => literal.fmt(f),
             LogicalExpr::Binary(binary) => binary.fmt(f),
+            LogicalExpr::Aggregate(aggregate) => aggregate.fmt(f),
         }
     }
 }

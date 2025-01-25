@@ -20,6 +20,7 @@ fn cols_from_expr(expr: &LogicalExpr) -> Vec<String> {
             left_columns.append(&mut right_columns);
             left_columns
         }
+        LogicalExpr::Aggregate(a) => cols_from_expr(a.input()),
     }
 }
 
@@ -53,6 +54,12 @@ impl OptimizerRule for ProjectionPushDown {
                 self.cols.extend(cols);
                 let input = self.optimize(*p.input);
                 LogicalPlan::projection(input, p.exprs)
+            }
+            LogicalPlan::Aggregate(p) => {
+                let cols = cols_from_exprs(&p.group_by);
+                self.cols.extend(cols);
+                let input = self.optimize(*p.input);
+                LogicalPlan::aggregate(input, p.group_by, p.agg)
             }
         }
     }

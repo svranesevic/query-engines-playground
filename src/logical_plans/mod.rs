@@ -1,10 +1,14 @@
+pub mod aggregate;
 pub mod filter;
 pub mod projection;
 pub mod scan;
 
 use std::rc::Rc;
 
-use crate::{data_source::DataSource, logical_exprs::LogicalExpr};
+use crate::data_source::DataSource;
+use crate::logical_exprs::aggregate::AggregateExpr;
+use crate::logical_exprs::LogicalExpr;
+use aggregate::Aggregate;
 use arrow::datatypes::Schema;
 use filter::Filter;
 use projection::Projection;
@@ -14,6 +18,7 @@ pub enum LogicalPlan {
     Scan(Scan),
     Projection(Projection),
     Filter(Filter),
+    Aggregate(Aggregate),
 }
 
 impl LogicalPlan {
@@ -22,7 +27,7 @@ impl LogicalPlan {
         data_source: Rc<dyn DataSource>,
         projection: Vec<String>,
     ) -> LogicalPlan {
-        LogicalPlan::Scan(Scan::new(path, data_source.into(), projection))
+        LogicalPlan::Scan(Scan::new(path, data_source, projection))
     }
 
     pub fn projection(input: LogicalPlan, exprs: Vec<LogicalExpr>) -> LogicalPlan {
@@ -33,11 +38,20 @@ impl LogicalPlan {
         LogicalPlan::Filter(Filter::new(input, expr))
     }
 
+    pub fn aggregate(
+        input: LogicalPlan,
+        group_by: Vec<LogicalExpr>,
+        agg: Vec<AggregateExpr>,
+    ) -> LogicalPlan {
+        LogicalPlan::Aggregate(Aggregate::new(Box::new(input), group_by, agg))
+    }
+
     pub fn schema(&self) -> Schema {
         match self {
             LogicalPlan::Scan(s) => s.schema(),
             LogicalPlan::Projection(p) => p.schema(),
             LogicalPlan::Filter(f) => f.schema(),
+            LogicalPlan::Aggregate(a) => a.schema(),
         }
     }
     pub fn children(&self) -> Vec<&LogicalPlan> {
@@ -45,6 +59,7 @@ impl LogicalPlan {
             LogicalPlan::Scan(s) => s.children(),
             LogicalPlan::Projection(p) => p.children(),
             LogicalPlan::Filter(f) => f.children(),
+            LogicalPlan::Aggregate(a) => a.children(),
         }
     }
 
@@ -73,6 +88,7 @@ impl std::fmt::Display for LogicalPlan {
             LogicalPlan::Scan(p) => p.fmt(f),
             LogicalPlan::Projection(p) => p.fmt(f),
             LogicalPlan::Filter(p) => p.fmt(f),
+            LogicalPlan::Aggregate(p) => p.fmt(f),
         }
     }
 }
