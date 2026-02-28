@@ -9,6 +9,7 @@ mod physical_exprs;
 mod physical_plans;
 mod planner;
 
+use arrow::util::pretty::pretty_format_batches;
 use data_frame::ExecutionContext;
 use logical_exprs::{aggregate::AggregateExpr, LogicalExpr};
 use optimizer::optimize;
@@ -22,7 +23,7 @@ fn main() {
 
     let count = AggregateExpr::count(LogicalExpr::lit_long(42));
 
-    let age = LogicalExpr::lit_long(42);
+    let age = LogicalExpr::lit_long(20);
     let filter = age_col.gte(age);
     let logical_plan = ctx
         .filter(filter)
@@ -38,6 +39,16 @@ fn main() {
 
     println!();
 
-    let physical_plan = create_physical_plan(&logical_plan);
+    let mut physical_plan = create_physical_plan(&logical_plan);
     println!("Physical Plan:\n{}", physical_plan.format());
+
+    let results = physical_plan.execute();
+    println!();
+    if results.is_empty() {
+        println!("Results: <empty>");
+        return;
+    }
+
+    let formatted = pretty_format_batches(&results).unwrap();
+    println!("Results:\n{}", formatted);
 }

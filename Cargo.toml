@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-arrow = "54.0.0"
+arrow = { version = "54.0.0", features = ["prettyprint"] }

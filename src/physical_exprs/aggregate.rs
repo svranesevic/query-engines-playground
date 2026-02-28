@@ -1,4 +1,8 @@
-use arrow::array::{ArrayRef, AsArray};
+use arrow::{
+    array::{ArrayRef, ArrowNativeTypeOp, ArrowNumericType, AsArray},
+    compute::kernels::aggregate,
+    datatypes::{ArrowNativeType, DataType, Int64Type},
+};
 
 use super::{literal::Literal, PhysicalExpr};
 
@@ -83,36 +87,17 @@ impl Max {
     }
 
     fn create_accumulator(&self) -> Box<dyn Accumulator> {
-        Box::new(MaxAccumulator::default())
+        Box::new(MaxAccumulator::<Int64Type>::new())
     }
 }
 
-// TODO(Sava): Use arrow_schema::DataType, to figure out accumulator type
-#[derive(Default)]
-struct MaxAccumulator {
-    value: Option<Literal>,
+struct MaxAccumulator<T: ArrowNumericType> {
+    max: Option<T::Native>,
 }
 
-impl Accumulator for MaxAccumulator {
-    fn accumulate(&mut self, values: ArrayRef) {
-        let values = values
-            .as_ref()
-            .as_primitive::<arrow::datatypes::Int64Type>();
-        let max = arrow::compute::kernels::aggregate::max(values);
-
-        if let Some(max) = max {
-            let new_max = match self.value {
-                None => Literal::Long(max),
-                Some(Literal::Long(old_max)) => Literal::Long(old_max.max(max)),
-                // TODO(Sava): Use arrow_schema::DataType, to figure out accumulator type
-                _ => panic!(),
-            };
-            self.value = Some(new_max);
-        }
-    }
-
-    fn final_value(&self) -> Option<Literal> {
-        self.value.clone()
+impl<T: ArrowNumericType> MaxAccumulator<T> {
+    fn new() -> Self {
+        Self { max: None }
     }
 }
 
@@ -130,39 +115,38 @@ impl Sum {
     }
 
     fn create_accumulator(&self) -> Box<dyn Accumulator> {
-        Box::new(SumAccumulator::new())
+        Box::new(SumAccumulator::<Int64Type>::new())
     }
 }
 
-struct SumAccumulator {
-    value: Literal,
+struct SumAccumulator<T: ArrowNumericType> {
+    sum: Option<T::Native>,
 }
 
-impl SumAccumulator {
+impl<T: ArrowNumericType> SumAccumulator<T> {
     fn new() -> Self {
-        Self {
-            value: Literal::Long(0),
-        }
+        Self { sum: None }
     }
 }
 
-impl Accumulator for SumAccumulator {
+impl<T: ArrowNumericType> Accumulator for SumAccumulator<T> {
     fn accumulate(&mut self, values: ArrayRef) {
-        let values = values
-            .as_ref()
-            .as_primitive::<arrow::datatypes::Int64Type>();
-        let sum = arrow::compute::kernels::aggregate::sum(values);
+        let values = values.as_primitive::<T>();
+        let Some(sum) = aggregate::sum(values) else {
+            return;
+        };
 
-        if let Some(sum) = sum {
-            self.value = match self.value {
-                Literal::Long(old_sum) => Literal::Long(old_sum + sum),
-                _ => panic!(),
-            };
-        }
+        self.sum = match self.sum {
+            Some(current) => Some(current.add_wrapping(sum)),
+            None => Some(sum),
+        };
     }
 
     fn final_value(&self) -> Option<Literal> {
-        Some(self.value.clone())
+        match T::DATA_TYPE {
+            DataType::Int64 => self.sum.and_then(|v| v.to_i64()).map(Literal::Long),
+            _ => panic!("Unsupported data type for sum accumulator"),
+        }
     }
 }
 
@@ -180,34 +164,42 @@ impl Min {
     }
 
     fn create_accumulator(&self) -> Box<dyn Accumulator> {
-        Box::new(MinAccumulator::default())
+        Box::new(MinAccumulator::<Int64Type>::new())
     }
 }
 
-#[derive(Default)]
-struct MinAccumulator {
-    value: Option<Literal>,
+struct MinAccumulator<T: ArrowNumericType> {
+    min: Option<T::Native>,
 }
 
-impl Accumulator for MinAccumulator {
-    fn accumulate(&mut self, values: ArrayRef) {
-        let values = values
-            .as_ref()
-            .as_primitive::<arrow::datatypes::Int64Type>();
-        let min = arrow::compute::kernels::aggregate::min(values);
+impl<T: ArrowNumericType> MinAccumulator<T> {
+    fn new() -> Self {
+        Self { min: None }
+    }
+}
 
-        if let Some(min) = min {
-            let new_min = match self.value {
-                None => Literal::Long(min),
-                Some(Literal::Long(old_min)) => Literal::Long(old_min.min(min)),
-                _ => panic!(),
-            };
-            self.value = Some(new_min);
+impl<T: ArrowNumericType> Accumulator for MinAccumulator<T> {
+    fn accumulate(&mut self, values: ArrayRef) {
+        let values = values.as_primitive::<T>();
+        let Some(min) = aggregate::min(values) else {
+            return;
+        };
+
+        match self.min {
+            Some(current) => {
+                if min.is_lt(current) {
+                    self.min = Some(min);
+                }
+            }
+            None => self.min = Some(min),
         }
     }
 
     fn final_value(&self) -> Option<Literal> {
-        self.value.clone()
+        match T::DATA_TYPE {
+            DataType::Int64 => self.min.and_then(|v| v.to_i64()).map(Literal::Long),
+            _ => panic!("Unsupported data type for min accumulator"),
+        }
     }
 }
 
@@ -225,38 +217,33 @@ impl Average {
     }
 
     fn create_accumulator(&self) -> Box<dyn Accumulator> {
-        Box::new(AverageAccumulator::new())
+        Box::new(AvgAccumulator::new())
     }
 }
 
-struct AverageAccumulator {
-    sum: Literal,
+struct AvgAccumulator {
+    sum: i128,
     count: u64,
 }
 
-impl AverageAccumulator {
+impl AvgAccumulator {
     fn new() -> Self {
-        Self {
-            sum: Literal::Long(0),
-            count: 0,
-        }
+        Self { sum: 0, count: 0 }
     }
 }
 
-impl Accumulator for AverageAccumulator {
+impl Accumulator for AvgAccumulator {
     fn accumulate(&mut self, values: ArrayRef) {
-        let values = values
-            .as_ref()
-            .as_primitive::<arrow::datatypes::Int64Type>();
-        let sum = arrow::compute::kernels::aggregate::sum(values);
-        let count = values.len() as u64;
-
-        if let Some(sum) = sum {
-            self.sum = match self.sum {
-                Literal::Long(old_sum) => Literal::Long(old_sum + sum),
-                _ => panic!(),
-            };
-            self.count += count;
+        if values.data_type() != &DataType::Int64 {
+            panic!(
+                "Unsupported data type for avg accumulator: {:?}",
+                values.data_type()
+            );
+        }
+        let values = values.as_primitive::<Int64Type>();
+        for value in values.iter().flatten() {
+            self.sum += value as i128;
+            self.count += 1;
         }
     }
 
@@ -264,12 +251,7 @@ impl Accumulator for AverageAccumulator {
         if self.count == 0 {
             return None;
         }
-
-        let sum = match self.sum {
-            Literal::Long(sum) => sum,
-            _ => panic!(),
-        };
-        Some(Literal::Long(sum / self.count as i64))
+        Some(Literal::Double(self.sum as f64 / self.count as f64))
     }
 }
 
@@ -287,21 +269,51 @@ impl Count {
     }
 
     fn create_accumulator(&self) -> Box<dyn Accumulator> {
-        Box::new(CountAccumulator::default())
+        Box::new(CountAccumulator::new())
     }
 }
 
-#[derive(Default)]
-pub struct CountAccumulator {
+struct CountAccumulator {
     count: u64,
+}
+
+impl CountAccumulator {
+    fn new() -> Self {
+        Self { count: 0 }
+    }
 }
 
 impl Accumulator for CountAccumulator {
     fn accumulate(&mut self, values: ArrayRef) {
-        self.count += values.len() as u64;
+        self.count += (values.len() - values.null_count()) as u64;
     }
 
     fn final_value(&self) -> Option<Literal> {
-        Some(Literal::Long(self.count as i64))
+        Some(Literal::UInt64(self.count))
+    }
+}
+
+impl<T: ArrowNumericType> Accumulator for MaxAccumulator<T> {
+    fn accumulate(&mut self, values: ArrayRef) {
+        let values = values.as_primitive::<T>();
+        let Some(max) = aggregate::max(values) else {
+            return;
+        };
+
+        match self.max {
+            Some(current) => {
+                if max.is_gt(current) {
+                    self.max = Some(max);
+                }
+            }
+            None => self.max = Some(max),
+        }
+    }
+
+    fn final_value(&self) -> Option<Literal> {
+        match T::DATA_TYPE {
+            DataType::Int64 => self.max.and_then(|v| v.to_i64()).map(Literal::Long),
+            _ => panic!("Unsupported data type for max accumulator"),
+        }
     }
 }

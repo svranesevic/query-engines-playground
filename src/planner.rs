@@ -19,13 +19,13 @@ pub fn create_physical_plan(plan: &LogicalPlan) -> PhysicalPlan {
             let exprs = projection
                 .exprs
                 .iter()
-                .map(|e| create_physical_expr(e, plan))
+                .map(|e| create_physical_expr(e, projection.input.as_ref()))
                 .collect();
             PhysicalPlan::projection(input, schema, exprs)
         }
         LogicalPlan::Filter(filter) => {
             let input = create_physical_plan(filter.input.as_ref());
-            let expr = create_physical_expr(&filter.expr, plan);
+            let expr = create_physical_expr(&filter.expr, filter.input.as_ref());
             PhysicalPlan::filter(Box::new(input), expr)
         }
         LogicalPlan::Aggregate(aggregate) => {
@@ -33,12 +33,12 @@ pub fn create_physical_plan(plan: &LogicalPlan) -> PhysicalPlan {
             let group_by: Vec<_> = aggregate
                 .group_by
                 .iter()
-                .map(|e| create_physical_expr(e, plan))
+                .map(|e| create_physical_expr(e, aggregate.input.as_ref()))
                 .collect();
             let aggr_expr: Vec<_> = aggregate
                 .agg
                 .iter()
-                .map(|e| create_aggregate_expr(e, plan))
+                .map(|e| create_aggregate_expr(e, aggregate.input.as_ref()))
                 .collect();
             PhysicalPlan::aggregate(Box::new(input), group_by, aggr_expr, aggregate.schema())
         }
@@ -51,9 +51,9 @@ fn create_aggregate_expr(
 ) -> PhysicalAggregateExpr {
     let expr = Box::new(create_physical_expr(aggregate.input(), plan));
     match aggregate {
-        LogicalAggregateExpr::Max(_) => PhysicalAggregateExpr::max(expr),
         LogicalAggregateExpr::Sum(_) => PhysicalAggregateExpr::sum(expr),
         LogicalAggregateExpr::Min(_) => PhysicalAggregateExpr::min(expr),
+        LogicalAggregateExpr::Max(_) => PhysicalAggregateExpr::max(expr),
         LogicalAggregateExpr::Avg(_) => PhysicalAggregateExpr::avg(expr),
         LogicalAggregateExpr::Count(_) => PhysicalAggregateExpr::count(expr),
     }
@@ -87,5 +87,60 @@ fn create_physical_expr(expr: &LogicalExpr, plan: &LogicalPlan) -> PhysicalExpr 
         LogicalExpr::Aggregate(aggregate) => {
             panic!("Unexpected aggregate expression: {}", aggregate)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        data_frame::ExecutionContext, logical_exprs::aggregate::AggregateExpr as LogicalAggExpr,
+        logical_exprs::LogicalExpr, optimizer::optimize,
+    };
+
+    use super::create_physical_plan;
+
+    #[test]
+    fn planner_maps_all_aggregate_variants() {
+        let age_col = LogicalExpr::col("age");
+        let logical_plan = ExecutionContext::csv("employee.csv")
+            .aggregate(
+                vec![age_col.clone()],
+                vec![
+                    LogicalAggExpr::sum(age_col.clone()),
+                    LogicalAggExpr::min(age_col.clone()),
+                    LogicalAggExpr::max(age_col.clone()),
+                    LogicalAggExpr::avg(age_col.clone()),
+                    LogicalAggExpr::count(age_col.clone()),
+                ],
+            )
+            .logical_plan();
+
+        let physical_plan = create_physical_plan(&logical_plan);
+        let plan_text = physical_plan.format();
+        assert!(plan_text.contains("SUM("));
+        assert!(plan_text.contains("MIN("));
+        assert!(plan_text.contains("MAX("));
+        assert!(plan_text.contains("AVG("));
+        assert!(plan_text.contains("COUNT("));
+    }
+
+    #[test]
+    fn projection_expr_indices_follow_input_schema_after_pushdown() {
+        let first_name_col = LogicalExpr::col("first_name");
+        let age_col = LogicalExpr::col("age");
+        let logical_plan = ExecutionContext::csv("employee.csv")
+            .filter(age_col.clone().gte(LogicalExpr::lit_long(20)))
+            .project(vec![first_name_col, age_col.clone()])
+            .aggregate(
+                vec![age_col],
+                vec![LogicalAggExpr::count(LogicalExpr::lit_long(42))],
+            )
+            .logical_plan();
+        let logical_plan = optimize(logical_plan);
+
+        let physical_plan = create_physical_plan(&logical_plan);
+        let plan_text = physical_plan.format();
+        assert!(plan_text.contains("ProjectionExec: [\"#1\", \"#0\"]"));
+        assert!(plan_text.contains("FilterExec: predicate=#0 >= 20"));
     }
 }

@@ -1,10 +1,12 @@
-use arrow::array::{ArrayRef, Int64Array, RecordBatch, StringArray};
+use arrow::array::{ArrayRef, Float64Array, Int64Array, RecordBatch, StringArray, UInt64Array};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum Literal {
     Str(String),
     Long(i64),
+    Double(f64),
+    UInt64(u64),
 }
 
 impl Literal {
@@ -18,6 +20,14 @@ impl Literal {
                 let value = vec![*long; input.num_rows()];
                 Arc::new(Int64Array::from(value))
             }
+            Literal::Double(double) => {
+                let value = vec![*double; input.num_rows()];
+                Arc::new(Float64Array::from(value))
+            }
+            Literal::UInt64(uint) => {
+                let value = vec![*uint; input.num_rows()];
+                Arc::new(UInt64Array::from(value))
+            }
         }
     }
 }
@@ -27,6 +37,8 @@ impl std::fmt::Display for Literal {
         match self {
             Literal::Str(str) => write!(f, "'{}'", str),
             Literal::Long(long) => write!(f, "{}", long),
+            Literal::Double(double) => write!(f, "{}", double),
+            Literal::UInt64(uint) => write!(f, "{}", uint),
         }
     }
 }

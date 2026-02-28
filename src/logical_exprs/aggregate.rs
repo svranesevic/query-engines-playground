@@ -51,7 +51,9 @@ impl AggregateExpr {
             AggregateExpr::Sum(expr) => expr.to_field(input),
             AggregateExpr::Min(expr) => expr.to_field(input),
             AggregateExpr::Max(expr) => expr.to_field(input),
-            AggregateExpr::Avg(expr) => expr.to_field(input),
+            AggregateExpr::Avg(expr) => expr
+                .to_field(input)
+                .with_data_type(arrow::datatypes::DataType::Float64),
             AggregateExpr::Count(agg) => agg.to_field(input),
         }
     }
