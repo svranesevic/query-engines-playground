@@ -6,6 +6,16 @@ use arrow::{
 
 use super::{literal::Literal, PhysicalExpr};
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AggregateFunction {
+    Max,
+    Sum,
+    Min,
+    Avg,
+    Count,
+}
+
+#[derive(Clone)]
 pub enum AggregateExpr {
     Max(Max),
     Sum(Sum),
@@ -54,6 +64,16 @@ impl AggregateExpr {
             AggregateExpr::Count(count) => count.create_accumulator(),
         }
     }
+
+    pub fn function(&self) -> AggregateFunction {
+        match self {
+            AggregateExpr::Max(_) => AggregateFunction::Max,
+            AggregateExpr::Sum(_) => AggregateFunction::Sum,
+            AggregateExpr::Min(_) => AggregateFunction::Min,
+            AggregateExpr::Average(_) => AggregateFunction::Avg,
+            AggregateExpr::Count(_) => AggregateFunction::Count,
+        }
+    }
 }
 
 impl std::fmt::Display for AggregateExpr {
@@ -73,6 +93,7 @@ pub trait Accumulator {
     fn final_value(&self) -> Option<Literal>;
 }
 
+#[derive(Clone)]
 pub struct Max {
     expr: Box<PhysicalExpr>,
 }
@@ -101,6 +122,7 @@ impl<T: ArrowNumericType> MaxAccumulator<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct Sum {
     expr: Box<PhysicalExpr>,
 }
@@ -150,6 +172,7 @@ impl<T: ArrowNumericType> Accumulator for SumAccumulator<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct Min {
     expr: Box<PhysicalExpr>,
 }
@@ -203,6 +226,7 @@ impl<T: ArrowNumericType> Accumulator for MinAccumulator<T> {
     }
 }
 
+#[derive(Clone)]
 pub struct Average {
     expr: Box<PhysicalExpr>,
 }
@@ -255,6 +279,7 @@ impl Accumulator for AvgAccumulator {
     }
 }
 
+#[derive(Clone)]
 pub struct Count {
     expr: Box<PhysicalExpr>,
 }

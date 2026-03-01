@@ -3,7 +3,6 @@ use crate::{
     logical_exprs::{aggregate::AggregateExpr, LogicalExpr},
     logical_plans::LogicalPlan,
 };
-use arrow::datatypes::Schema;
 use std::rc::Rc;
 
 pub struct DataFrame {
@@ -32,10 +31,6 @@ impl DataFrame {
 
     fn new(plan: LogicalPlan) -> Self {
         Self { plan }
-    }
-
-    fn schema(&self) -> Schema {
-        self.plan.schema()
     }
 }
 

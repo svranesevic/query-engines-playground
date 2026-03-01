@@ -1,19 +1,12 @@
-#![allow(dead_code)]
-
-mod data_frame;
-mod data_source;
-mod logical_exprs;
-mod logical_plans;
-mod optimizer;
-mod physical_exprs;
-mod physical_plans;
-mod planner;
+use std::sync::Arc;
 
 use arrow::util::pretty::pretty_format_batches;
-use data_frame::ExecutionContext;
-use logical_exprs::{aggregate::AggregateExpr, LogicalExpr};
-use optimizer::optimize;
-use planner::create_physical_plan;
+use how_query_engines_work_rust::data_frame::ExecutionContext;
+
+use how_query_engines_work_rust::jit;
+use how_query_engines_work_rust::logical_exprs::{aggregate::AggregateExpr, LogicalExpr};
+use how_query_engines_work_rust::optimizer::optimize;
+use how_query_engines_work_rust::planner::create_physical_plan;
 
 fn main() {
     let ctx = ExecutionContext::csv("employee.csv");
@@ -32,23 +25,23 @@ fn main() {
         .logical_plan();
     println!("Logical Plan:\n{}", logical_plan.format());
 
-    println!();
-
     let logical_plan = optimize(logical_plan);
+    println!();
     println!("Optimized Logical Plan:\n{}", logical_plan.format());
 
-    println!();
-
     let mut physical_plan = create_physical_plan(&logical_plan);
+    println!();
     println!("Physical Plan:\n{}", physical_plan.format());
 
     let results = physical_plan.execute();
-    println!();
-    if results.is_empty() {
-        println!("Results: <empty>");
-        return;
-    }
-
     let formatted = pretty_format_batches(&results).unwrap();
-    println!("Results:\n{}", formatted);
+    println!();
+    println!("Volcano results:\n{}", formatted);
+
+    let mut plan = jit::compile(Arc::new(create_physical_plan(&logical_plan)))
+        .expect("JIT compilation failed");
+    let results = plan.execute();
+    let formatted = pretty_format_batches(&results).unwrap();
+    println!();
+    println!("JIT Results:\n{}", formatted);
 }

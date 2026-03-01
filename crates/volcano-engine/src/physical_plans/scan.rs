@@ -1,8 +1,8 @@
 use std::rc::Rc;
 
 use super::PhysicalPlan;
-use crate::data_source::DataSource;
 use arrow::{array::RecordBatch, datatypes::Schema};
+use query_core::data_source::DataSource;
 
 pub struct ScanExec {
     datasource: Rc<dyn DataSource>,
@@ -39,6 +39,14 @@ impl ScanExec {
 
     pub fn execute(&mut self) -> Vec<RecordBatch> {
         self.datasource.scan(self.projection.clone())
+    }
+
+    pub fn data_source(&self) -> Rc<dyn DataSource> {
+        self.datasource.clone()
+    }
+
+    pub fn projection(&self) -> &[String] {
+        &self.projection
     }
 }
 

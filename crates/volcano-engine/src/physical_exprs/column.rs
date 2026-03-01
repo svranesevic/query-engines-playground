@@ -1,5 +1,6 @@
 use arrow::array::{ArrayRef, RecordBatch};
 
+#[derive(Clone)]
 pub struct Column {
     pub i: usize,
 }

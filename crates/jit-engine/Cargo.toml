@@ -1,0 +1,14 @@
+[package]
+name = "jit-engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+arrow.workspace = true
+cranelift-codegen = { version = "0.119.0" }
+cranelift-frontend = { version = "0.119.0" }
+cranelift-jit = { version = "0.119.0" }
+cranelift-module = { version = "0.119.0" }
+cranelift-native = { version = "0.119.0" }
+query-core = { path = "../query-core" }
+volcano-engine = { path = "../volcano-engine" }

@@ -3,5 +3,21 @@ name = "how-query-engines-work-rust"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+members = ["crates/query-core", "crates/volcano-engine", "crates/jit-engine"]
+
+[workspace.dependencies]
+arrow = { version = "58.0.0", features = ["prettyprint"] }
+
 [dependencies]
-arrow = { version = "54.0.0", features = ["prettyprint"] }
+arrow.workspace = true
+query-core = { path = "crates/query-core" }
+volcano-engine = { path = "crates/volcano-engine" }
+jit-engine = { path = "crates/jit-engine" }
+
+[dev-dependencies]
+criterion = "0.8.2"
+
+[[bench]]
+name = "engine_compare"
+harness = false

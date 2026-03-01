@@ -261,6 +261,18 @@ impl HashAggregateExec {
         let batch = RecordBatch::try_new(Arc::new(self.schema.clone()), columns).unwrap();
         vec![batch]
     }
+
+    pub fn input(&self) -> &PhysicalPlan {
+        self.input.as_ref()
+    }
+
+    pub fn group_expr(&self) -> &[PhysicalExpr] {
+        &self.group_expr
+    }
+
+    pub fn aggregate_expr(&self) -> &[AggregateExpr] {
+        &self.aggregate_expr
+    }
 }
 
 impl std::fmt::Display for HashAggregateExec {
@@ -292,7 +304,8 @@ mod tests {
         datatypes::{DataType, Field},
     };
 
-    use crate::{data_source::DataSource, physical_exprs::aggregate::AggregateExpr};
+    use crate::physical_exprs::aggregate::AggregateExpr;
+    use query_core::data_source::DataSource;
 
     use super::*;
 

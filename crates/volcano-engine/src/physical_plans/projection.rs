@@ -38,6 +38,14 @@ impl ProjectionExec {
             })
             .collect()
     }
+
+    pub fn input(&self) -> &PhysicalPlan {
+        self.input.as_ref()
+    }
+
+    pub fn exprs(&self) -> &[PhysicalExpr] {
+        &self.exprs
+    }
 }
 
 impl std::fmt::Display for ProjectionExec {

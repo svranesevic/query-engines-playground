@@ -6,10 +6,11 @@ use arrow::{
     datatypes::DataType,
 };
 
-use crate::logical_exprs::binary::Operator;
+use query_core::logical_exprs::binary::Operator;
 
 use super::PhysicalExpr;
 
+#[derive(Clone)]
 pub struct Binary {
     left: Box<PhysicalExpr>,
     right: Box<PhysicalExpr>,
@@ -110,6 +111,18 @@ impl Binary {
             }
         };
         Arc::new(array)
+    }
+
+    pub fn left(&self) -> &PhysicalExpr {
+        self.left.as_ref()
+    }
+
+    pub fn right(&self) -> &PhysicalExpr {
+        self.right.as_ref()
+    }
+
+    pub fn op(&self) -> &Operator {
+        &self.op
     }
 }
 

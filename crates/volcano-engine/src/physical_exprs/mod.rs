@@ -3,13 +3,14 @@ pub mod binary;
 pub mod column;
 pub mod literal;
 
-use crate::logical_exprs::binary::Operator;
 use aggregate::AggregateExpr;
 use arrow::array::{ArrayRef, RecordBatch};
 use binary::Binary;
 use column::Column;
 use literal::Literal;
+use query_core::logical_exprs::binary::Operator;
 
+#[derive(Clone)]
 pub enum PhysicalExpr {
     Column(Column),
     Literal(Literal),

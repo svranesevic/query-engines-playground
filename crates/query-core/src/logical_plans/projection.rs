@@ -1,5 +1,5 @@
 use super::LogicalPlan;
-use crate::LogicalExpr;
+use crate::logical_exprs::LogicalExpr;
 use arrow::datatypes::Schema;
 
 pub struct Projection {

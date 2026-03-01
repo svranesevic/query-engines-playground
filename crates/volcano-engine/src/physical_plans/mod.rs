@@ -11,10 +11,8 @@ use hash_aggregate::HashAggregateExec;
 use projection::ProjectionExec;
 use scan::ScanExec;
 
-use crate::{
-    data_source::DataSource,
-    physical_exprs::{aggregate::AggregateExpr, PhysicalExpr},
-};
+use crate::physical_exprs::{aggregate::AggregateExpr, PhysicalExpr};
+use query_core::data_source::DataSource;
 
 pub enum PhysicalPlan {
     Scan(ScanExec),

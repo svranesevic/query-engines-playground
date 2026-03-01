@@ -1,11 +1,13 @@
 use crate::{
+    physical_exprs::{aggregate::AggregateExpr as PhysicalAggregateExpr, PhysicalExpr},
+    physical_plans::PhysicalPlan,
+};
+use query_core::{
     logical_exprs::{
         aggregate::AggregateExpr as LogicalAggregateExpr, binary::Operator as LogicalBinaryOp,
         literal::Literal as LogicalLiteral, LogicalExpr,
     },
     logical_plans::LogicalPlan,
-    physical_exprs::{aggregate::AggregateExpr as PhysicalAggregateExpr, PhysicalExpr},
-    physical_plans::PhysicalPlan,
 };
 
 pub fn create_physical_plan(plan: &LogicalPlan) -> PhysicalPlan {
@@ -92,7 +94,7 @@ fn create_physical_expr(expr: &LogicalExpr, plan: &LogicalPlan) -> PhysicalExpr 
 
 #[cfg(test)]
 mod tests {
-    use crate::{
+    use query_core::{
         data_frame::ExecutionContext, logical_exprs::aggregate::AggregateExpr as LogicalAggExpr,
         logical_exprs::LogicalExpr, optimizer::optimize,
     };

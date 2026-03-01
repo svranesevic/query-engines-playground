@@ -38,6 +38,14 @@ impl FilterExec {
             })
             .collect()
     }
+
+    pub fn input(&self) -> &PhysicalPlan {
+        self.input.as_ref()
+    }
+
+    pub fn predicate(&self) -> &PhysicalExpr {
+        &self.predicate
+    }
 }
 
 impl std::fmt::Display for FilterExec {
